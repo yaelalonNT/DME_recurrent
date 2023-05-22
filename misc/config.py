@@ -52,7 +52,7 @@ __C.MULTIOBJECT = True
 __C.PATH.ROOT = osp.abspath(os.getcwd())
 
 # Data folder
-__C.PATH.DATA = osp.abspath('../databases/DAVIS2017/train')
+__C.PATH.DATA = osp.abspath('../../databases/DAVIS2017/train')
 
 # Path to input images
 __C.PATH.SEQUENCES = osp.join(__C.PATH.DATA,"JPEGImages",__C.RESOLUTION)

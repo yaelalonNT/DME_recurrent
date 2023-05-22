@@ -119,14 +119,12 @@ class DAVISLoader(MyDataset):
         lmdb_env_seq = None
         lmdb_env_annot = None
         print('LMDB not found. This could affect the data loading time. It is recommended to use LMDB.')
-    
+
     # Load sequences
     self.sequences = [Sequence(self._phase, s.name, lmdb_env=lmdb_env_seq) for s in self._db_sequences]
-    self._db_sequences = db_read_sequences(args.year,self._phase)
 
     # Load annotations
-    self.annotations = [Annotation(self._phase,s.name,self._single_object, lmdb_env=lmdb_env_annot)
-        for s in self._db_sequences]
+    self.annotations = [Annotation(self._phase,s.name,self._single_object, lmdb_env=lmdb_env_annot) for s in self._db_sequences]
 
     # Load sequences
     self.sequence_clips = []

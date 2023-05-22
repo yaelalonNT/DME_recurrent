@@ -12,12 +12,13 @@ from torch.autograd import Variable
 import numpy as np
 from PIL import Image
 import time
-from scipy.misc import imresize
+#from scipy.misc import imresize
 import random
 from .transforms.transforms import Affine
 import glob
 import json
-
+import cv2
+from cv2 import resize as imresize
 from args import get_parser
 
 # Dataset configuration initialization

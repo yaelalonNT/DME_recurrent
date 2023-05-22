@@ -137,13 +137,12 @@ def batch_to_var(args, inputs, targets):
     during training
     """
     x = Variable(inputs,requires_grad=False)
-    y_mask = Variable(targets[:,:,:-1].float(),requires_grad=False)
-    sw_mask = Variable(targets[:,:,-1],requires_grad=False)
+    y_mask = Variable(targets.float(),requires_grad=False)
 
     if args.use_gpu:
-        return x.cuda(), y_mask.cuda(), sw_mask.cuda()
+        return x.cuda(), y_mask.cuda()
     else:
-        return x, y_mask, sw_mask
+        return x, y_mask
         
 def batch_to_var_test(args, inputs):
     """

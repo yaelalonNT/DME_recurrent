@@ -26,10 +26,7 @@ class softIoULoss(nn.Module):
 
     def __init__(self):
         super(softIoULoss,self).__init__()
-    def forward(self, y_true, y_pred, sw):
+    def forward(self, y_true, y_pred):
         costs = softIoU(y_true,y_pred).view(-1,1)
-        if (sw.data > 0).any():
-            costs = torch.mean(torch.masked_select(costs,sw.byte()))
-        else:
-            costs = torch.mean(costs)
+        costs = torch.mean(costs)
         return costs

@@ -6,7 +6,7 @@ def get_parser():
     
     parser.add_argument('-year', dest='year', default = '2017')
     parser.add_argument('-imsize',dest='imsize', default=480, type=int)
-    parser.add_argument('-batch_size', dest='batch_size', default = 10, type=int)
+    parser.add_argument('-batch_size', dest='batch_size', default = 8, type=int)
     parser.add_argument('-num_workers', dest='num_workers', default = 1, type=int)
     parser.add_argument('-length_clip', dest='length_clip', default = 1, type=int)
     parser.add_argument('--single_object',dest='single_object', action='store_true')
@@ -39,7 +39,7 @@ def get_parser():
     parser.add_argument('-weight_decay_cnn', dest='weight_decay_cnn', default = 1e-6, type=float)
     parser.add_argument('-optim', dest='optim', default = 'adam',
                         choices=['adam','sgd','rmsprop'])
-    parser.add_argument('-maxseqlen', dest='maxseqlen', default = 10, type=int)
+    parser.add_argument('-maxseqlen', dest='maxseqlen', default = 5, type=int)
     parser.add_argument('-gt_maxseqlen', dest='gt_maxseqlen', default = 10, type=int)
     parser.add_argument('-best_val_loss', dest='best_val_loss', default = 1000, type=float)
     parser.add_argument('--crop', dest='crop', action='store_true')
@@ -111,10 +111,10 @@ def get_parser():
     parser.add_argument('--resize',dest='resize', action='store_true')
     parser.set_defaults(resize=False)
     parser.add_argument('-num_classes', dest='num_classes', default = 21, type=int)
-    parser.add_argument('-dataset', dest='dataset', default = 'davis2017',choices=['davis2017', 'youtube'])
+    parser.add_argument('-dataset', dest='dataset', default = 'davis2017',choices=['davis2017', 'youtube','Hoct'])
     parser.add_argument('-youtube_dir', dest='youtube_dir',
                         default='../../databases/YouTubeVOS/')
-
+    parser.add_argument('-hoct_dir', default = r'\\nv-nas01\Data\DME_recurrent\Data')
     # testing
     parser.add_argument('-eval_split',dest='eval_split', default='test')
     parser.add_argument('-mask_th',dest='mask_th', default=0.5, type=float)

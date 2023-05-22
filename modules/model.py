@@ -4,7 +4,7 @@ from .clstm import ConvLSTMCell, ConvLSTMCellMask
 import argparse
 import torch.nn.functional as f
 from torch.autograd import Variable
-from torchvision import models
+from torchvision import transforms, models
 import torch.nn as nn
 import math
 from .vision import VGG16, ResNet34, ResNet50, ResNet101
@@ -166,7 +166,7 @@ class RSIS(nn.Module):
         # classification branch
 
         return out_mask, hidden_list
-
+        
 class RSISMask(nn.Module):
     """
     The recurrent decoder
@@ -213,7 +213,7 @@ class RSISMask(nn.Module):
 
 
    
-    def forward(self,args,skip_feats, prev_mask,mask_first, prev_state_spatial, prev_hidden_temporal, hideen_temporal_first):     
+    def forward(self, skip_feats, prev_state_spatial, prev_hidden_temporal):     
                   
         clstm_in = skip_feats[0]
         skip_feats = skip_feats[1:]
@@ -224,29 +224,15 @@ class RSISMask(nn.Module):
             # hidden states will be initialized the first time forward is called
             if prev_state_spatial is None:
                 if prev_hidden_temporal is None:
-                    if args.use_GS_hidden:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], None, None, mask_first[i], None)                                                
-                    else:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], None, None, None, None)
+                    state = self.clstm_list[i](clstm_in, None, None)
                 else:
-                    if args.use_GS_hidden:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], None, prev_hidden_temporal[i], mask_first[i], hideen_temporal_first[i])                                                
-                    else:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], None, prev_hidden_temporal[i], None, None)
-
+                    state = self.clstm_list[i](clstm_in, None, prev_hidden_temporal[i])
             else:
                 # else we take the ones from the previous step for the forward pass
                 if prev_hidden_temporal is None:
-                    if args.use_GS_hidden:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], prev_state_spatial[i], None, mask_first[i], None)
-                    else:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], prev_state_spatial[i], None, None, None)
-
+                    state = self.clstm_list[i](clstm_in, prev_state_spatial[i], None)  
                 else:
-                    if args.use_GS_hidden:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], prev_state_spatial[i], prev_hidden_temporal[i], mask_first[i], hideen_temporal_first[i])            
-                    else:
-                        state = self.clstm_list[i](clstm_in, prev_mask[i], prev_state_spatial[i], prev_hidden_temporal[i], None, None)
+                    state = self.clstm_list[i](clstm_in, prev_state_spatial[i], prev_hidden_temporal[i])
 
             hidden_list.append(state)
             hidden = state[0]
@@ -282,4 +268,3 @@ class RSISMask(nn.Module):
         del clstm_in, skip_feats
 
         return out_mask, hidden_list
-    
