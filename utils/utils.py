@@ -84,12 +84,12 @@ def get_optimizer(optim_name, lr, parameters, weight_decay = 0, momentum = 0.9):
     return opt
 
 def save_checkpoint(args, encoder, decoder, enc_opt, dec_opt):
-    torch.save(encoder.state_dict(), os.path.join('../models',args.model_name,'encoder.pt'))
-    torch.save(decoder.state_dict(), os.path.join('../models',args.model_name,'decoder.pt'))
-    torch.save(enc_opt.state_dict(), os.path.join('../models',args.model_name,'enc_opt.pt'))
-    torch.save(dec_opt.state_dict(), os.path.join('../models',args.model_name,'dec_opt.pt'))
+    torch.save(encoder.state_dict(), os.path.join('./../Model',args.model_name,'encoder.pt'))
+    torch.save(decoder.state_dict(), os.path.join('./../Model',args.model_name,'decoder.pt'))
+    torch.save(enc_opt.state_dict(), os.path.join('./../Model',args.model_name,'enc_opt.pt'))
+    torch.save(dec_opt.state_dict(), os.path.join('./../Model',args.model_name,'dec_opt.pt'))
     # save parameters for future use
-    pickle.dump(args, open(os.path.join('../models',args.model_name,'args.pkl'),'wb'))
+    pickle.dump(args, open(os.path.join('./../Model',args.model_name,'args.pkl'),'wb'))
     
 def save_checkpoint_prev_mask(args, model_dir, epoch, encoder, decoder, enc_opt, dec_opt, isbest):
     if isbest: # Best model
@@ -108,26 +108,26 @@ def save_checkpoint_prev_mask(args, model_dir, epoch, encoder, decoder, enc_opt,
     # save parameters for future use
     
 def save_checkpoint_prev_inference_mask(args, encoder, decoder, enc_opt, dec_opt):
-    torch.save(encoder.state_dict(), os.path.join('../models',args.model_name + '_prev_inference_mask','encoder.pt'))
-    torch.save(decoder.state_dict(), os.path.join('../models',args.model_name + '_prev_inference_mask','decoder.pt'))
-    torch.save(enc_opt.state_dict(), os.path.join('../models',args.model_name + '_prev_inference_mask','enc_opt.pt'))
-    torch.save(dec_opt.state_dict(), os.path.join('../models',args.model_name + '_prev_inference_mask','dec_opt.pt'))
+    torch.save(encoder.state_dict(), os.path.join('../../Model',args.model_name + '_prev_inference_mask','encoder.pt'))
+    torch.save(decoder.state_dict(), os.path.join('../../Model',args.model_name + '_prev_inference_mask','decoder.pt'))
+    torch.save(enc_opt.state_dict(), os.path.join('../../Model',args.model_name + '_prev_inference_mask','enc_opt.pt'))
+    torch.save(dec_opt.state_dict(), os.path.join('../../Model',args.model_name + '_prev_inference_mask','dec_opt.pt'))
     # save parameters for future use
     pickle.dump(args, open(os.path.join('../models',args.model_name + '_prev_inference_mask','args.pkl'),'wb'))
 
 def load_checkpoint(model_name,use_gpu=True):
     if use_gpu:
-        encoder_dict = torch.load(os.path.join('../models',model_name,'encoder.pt'))
-        decoder_dict = torch.load(os.path.join('../models',model_name,'decoder.pt'))
-        enc_opt_dict = torch.load(os.path.join('../models',model_name,'enc_opt.pt'))
-        dec_opt_dict = torch.load(os.path.join('../models',model_name,'dec_opt.pt'))
+        encoder_dict = torch.load(os.path.join('../../Model',model_name,'encoder.pt'))
+        decoder_dict = torch.load(os.path.join('../../Model',model_name,'decoder.pt'))
+        enc_opt_dict = torch.load(os.path.join('../../Model',model_name,'enc_opt.pt'))
+        dec_opt_dict = torch.load(os.path.join('../../Model',model_name,'dec_opt.pt'))
     else:
-        encoder_dict = torch.load(os.path.join('../models',model_name,'encoder.pt'), map_location=lambda storage, location: storage)
-        decoder_dict = torch.load(os.path.join('../models',model_name,'decoder.pt'), map_location=lambda storage, location: storage)
-        enc_opt_dict = torch.load(os.path.join('../models',model_name,'enc_opt.pt'), map_location=lambda storage, location: storage)
-        dec_opt_dict = torch.load(os.path.join('../models',model_name,'dec_opt.pt'), map_location=lambda storage, location: storage)
+        encoder_dict = torch.load(os.path.join('../../Model',model_name,'encoder.pt'), map_location=lambda storage, location: storage)
+        decoder_dict = torch.load(os.path.join('../../Model',model_name,'decoder.pt'), map_location=lambda storage, location: storage)
+        enc_opt_dict = torch.load(os.path.join('../../Model',model_name,'enc_opt.pt'), map_location=lambda storage, location: storage)
+        dec_opt_dict = torch.load(os.path.join('../../Model',model_name,'dec_opt.pt'), map_location=lambda storage, location: storage)
     # save parameters for future use
-    args = pickle.load(open(os.path.join('../models',model_name,'args.pkl'),'rb'))
+    args = pickle.load(open(os.path.join('../../Model',model_name,'args.pkl'),'rb'))
 
     return encoder_dict, decoder_dict, enc_opt_dict, dec_opt_dict, args
 
@@ -319,7 +319,7 @@ def get_prev_mask(prev_mask,x,feats,t):
     mask_lstm = list(reversed(mask_lstm))
     return mask_lstm
     
-def test_prev_mask(args, encoder, decoder, x, prev_hidden_temporal_list, hideen_temporal_first_list, prev_mask, mask_first):
+def test_prev_mask(args, encoder, decoder, x, prev_hidden_temporal_list):
 
     """
     Runs forward, computes loss and (if train mode) updates parameters
@@ -343,25 +343,17 @@ def test_prev_mask(args, encoder, decoder, x, prev_hidden_temporal_list, hideen_
     for t in range(0, T):
         #prev_hidden_temporal_list is a list with the hidden state for all instances from previous time instant
         #If this is the first frame of the sequence, hidden_temporal is initialized to None. Otherwise, it is set with the value from previous time instant.
-        hideen_temporal_first = None
         if prev_hidden_temporal_list is not None:
             hidden_temporal = prev_hidden_temporal_list[t]
-            if args.use_GS_hidden:
-                hideen_temporal_first = hideen_temporal_first_list[t]
         else:
             hidden_temporal = None
-            hideen_temporal_first = None
 
-        mask_lstm =  get_prev_mask(prev_mask,x,feats,t)
-        if args.use_GS_hidden:
-            mask_lstm_first = get_prev_mask(mask_first,x,feats,t)
-        else:
-            mask_lstm_first = None
         
         #The decoder receives two hidden state variables: hidden_spatial (a tuple, with hidden_state and cell_state) which refers to the
         #hidden state from the previous object instance from the same time instant, and hidden_temporal which refers to the hidden state from the same
         #object instance from the previous time instant.
-        out_mask, hidden = decoder(args,feats, mask_lstm, mask_lstm_first, hidden_spatial, hidden_temporal, hideen_temporal_first)
+        out_mask, hidden = decoder(feats, hidden_spatial, hidden_temporal)
+
 
         hidden_tmp = []
         for ss in range(len(hidden)):
@@ -376,7 +368,7 @@ def test_prev_mask(args, encoder, decoder, x, prev_hidden_temporal_list, hideen_
         # get predictions in list to concat later
         out_masks.append(out_mask)
         
-        del mask_lstm, mask_lstm_first,hidden_temporal, hidden_tmp, out_mask
+        del hidden_temporal, hidden_tmp, out_mask
 
     # concat all outputs into single tensor to compute the loss
     t = len(out_masks)

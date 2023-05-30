@@ -42,10 +42,12 @@ class HoctDataset():
             for n in range(0,len(dir_numbers),self.length_clip):
                 if n + self.length_clip < len(dir_files): 
                     ind = range(n,n+self.length_clip) 
-                else: # End of sequence
-                    ind = range(len(dir_files)-self.length_clip,len(dir_files))
+                else: # End of volume scan
+                    min_ind = max(0,len(dir_files)-self.length_clip)
+                    ind = range(min_ind,len(dir_files))
                     
                 seq_img_path = [os.path.join(scan_path_img,str(dir_numbers[f]) + '.npy') for f in ind]
+
                 seq_seg_path = [os.path.join(scan_path_seg,str(dir_numbers[f]) + '.npy') for f in ind]
                 seq_name = '%s_%d_%d' %(scan,dir_numbers[ind[0]],dir_numbers[ind[-1]])
                 self.sequences_images.append(seq_img_path)

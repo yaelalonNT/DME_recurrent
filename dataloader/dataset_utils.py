@@ -1,7 +1,5 @@
-import numpy as np
-from scipy.ndimage.interpolation import zoom
-import torch
-import random
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def get_dataset(args, split, image_transforms = None, target_transforms = None, augment = False,inputRes = None, video_mode = True, use_prev_mask = False):
 
