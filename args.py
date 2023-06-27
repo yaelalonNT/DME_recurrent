@@ -48,6 +48,10 @@ def get_parser():
     parser.set_defaults(smooth_curves=False)
     parser.add_argument('--overlay_masks', dest='overlay_masks', action='store_true')
     parser.set_defaults(overlay_masks=False)
+    
+    parser.add_argument('-augment_prob_xflip', dest='augment_prob_xflip',default = 0.5)
+    parser.add_argument('-augment_prob_yflip', dest='augment_prob_yflip',default = 0.5)
+    parser.add_argument('-augment_prob_rotate', dest='augment_prob_rotate',default = 0.5)
 
     # base model fine tuning
     parser.add_argument('-finetune_after', dest='finetune_after', default = 0, type=int,

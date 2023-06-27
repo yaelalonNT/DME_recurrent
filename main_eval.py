@@ -1,3 +1,5 @@
+import sys, os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -9,8 +11,6 @@ from dataloader.dataset_Hoct import HoctDataset
 import torch
 import numpy as np
 import torch.utils.data as data
-import sys, os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from measures.f_boundary import db_eval_boundary as eval_F
 from measures.jaccard import db_eval_iou as jaccard_simple
 import pickle
@@ -66,36 +66,46 @@ class Evaluate():
         colors = {0:[0,0,0.6],1:[0.42,0.65,0.016],2:[0.22,0.6,0.83],3:[1,1,0],4:[0,1,0]}# Vitreous,Srf,Irf,Retina,Erm
         return colors
 
-    def save_results(self,x,colors,num_instances,outs,base_dir,starting_frame,ii):
+    def save_results(self,x,colors,num_instances,outs,base_dir,starting_frame,ii,GS):
+        GS = np.argmax(np.squeeze(GS),0)
         frame_img = x.data.cpu().numpy()[0,:,:,:].squeeze()
         frame_img = np.transpose(frame_img, (1,2,0))
         frame_img[frame_img<0] = 0
         frame_img[frame_img>1] = 1
         label_mask = np.argmax(outs[0,:,:,:].numpy(),axis=0)
-        label_map = frame_img.copy()
+        label_map_net = frame_img.copy()
+        label_map_GS = frame_img.copy()
         frame_with_overlay = frame_img.copy()
         
         for n in range(0,num_instances):
-            label_map[label_mask==n,:] = colors[n]
+            label_map_net[label_mask==n,:] = colors[n]
             if n in [1,2,4]: #IRF,SRF,ERM
                 frame_with_overlay[label_mask==n,:] = colors[n]
-            
+
+        for n in range(0,num_instances):
+            label_map_GS[GS==n,:] = colors[n]    
         
         plt.figure()
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)    
+        fig, (ax1, ax2, ax3,ax4) = plt.subplots(1, 4)    
         fig.set_figheight(20)
-        fig.set_figwidth(20)
+        fig.set_figwidth(30)
+        
         ax1.imshow(frame_img)
         ax1.set_title('Original image')
         ax1.axis('off')
 
         ax2.imshow(frame_with_overlay)
-        ax2.set_title('Original image with fluid overlay')
+        ax2.set_title('Original image with net fluid overlay')
         ax2.axis('off')
 
-        ax3.imshow(label_map)
-        ax3.set_title('Label_map')
+        ax3.imshow(label_map_net)
+        ax3.set_title('Net label map')
         ax3.axis('off')
+
+        ax4.imshow(label_map_GS)
+        ax4.set_title('GS label map')
+        ax4.axis('off')
+                
         figname = base_dir + 'frame_%02d.png' %(starting_frame[0]+ii)
         plt.savefig(figname,bbox_inches='tight')
         plt.close()
@@ -105,18 +115,14 @@ class Evaluate():
         colors = self.get_colors()
         jaccard_vec, F_vec= [],[]
         
-        dev_dir = os.path.join('../../Model', args.model_name, self.split)
+        dev_dir = os.path.join('../../Model', args.model_name, 'validation_results')
         make_dir(dev_dir)
-        masks_sep_dir = os.path.join(dev_dir,'masks')
-        make_dir(masks_sep_dir)
-        results_dir = os.path.join(dev_dir,'results')
-        make_dir(results_dir)
         
         for batch_idx, (inputs, targets,seq_name,starting_frame) in enumerate(self.loader):
             prev_hidden_temporal_list = None
             max_ii = min(len(inputs),args.length_clip)
 
-            base_dir = results_dir + '/' + seq_name[0] + '/'
+            base_dir = dev_dir + '/' + seq_name[0] + '/'
             make_dir(base_dir)
                 
             for ii in range(max_ii):
@@ -125,8 +131,6 @@ class Evaluate():
                 outs = outs.reshape(np.shape(y_mask))
                 jaccard_vec.append(jaccard_simple(y_mask.cpu().numpy(),outs.cpu().numpy()))
                 #F_vec.append(eval_F(y_mask.cpu().numpy(),outs.cpu().numpy()))
-                base_dir_masks_sep = masks_sep_dir + '/' + seq_name[0] + '/'
-                make_dir(base_dir_masks_sep)
                 x_tmp = x.data.cpu().numpy()
                 height = x_tmp.shape[-2]
                 width = x_tmp.shape[-1]
@@ -146,17 +150,12 @@ class Evaluate():
                     jaccard_vec.append(jaccard_simple(GS,maskboll))
                     F_vec.append(eval_F(GS,maskboll))
                     
-                    new_p = Image.fromarray(mask2assess)
-                    if new_p.mode != 'RGB':
-                        new_p = new_p.convert('RGB')
-                    new_p.save(base_dir_masks_sep + '%05d_instance_%02d.png' %(starting_frame[0]+ii,t))
                     
                 print(seq_name[0] + '/' + '%05d' % (starting_frame[0] + ii))
 
-                self.save_results(x,colors,num_instances,outs,base_dir,starting_frame,ii)
+                self.save_results(x,colors,num_instances,outs,base_dir,starting_frame,ii,y_mask)
                 if self.video_mode:
-                    if args.only_spatial == False:
-                        prev_hidden_temporal_list = hidden_temporal_list
+                    prev_hidden_temporal_list = hidden_temporal_list
 
                 del outs, hidden_temporal_list, x
 
@@ -165,36 +164,11 @@ class Evaluate():
         Mean_jaccared = sum(jaccard_vec)/len(jaccard_vec)
         Mean_F = sum(F_vec)/len(F_vec)
         return Mean_jaccared, Mean_F                   
-
-                        
-def annot_from_mask(annot, instance_ids):        
-
-    h = annot.shape[0]
-    w = annot.shape[1]
-
-    total_num_instances = len(instance_ids)
-    max_instance_id = 0
-    if total_num_instances > 0:
-        max_instance_id = int(np.max(instance_ids))
-    num_instances = max(args.maxseqlen,max_instance_id)
-
-    gt_seg = np.zeros((num_instances, h*w))
-
-    for i in range(total_num_instances):
-
-        id_instance = int(instance_ids[i])
-        aux_mask = np.zeros((h, w))
-        aux_mask[annot==id_instance] = 1
-        gt_seg[id_instance-1,:] = np.reshape(aux_mask,h*w)
-
-    gt_seg = gt_seg[:][:args.maxseqlen]
-
-    return gt_seg                        
-                    
+                                  
 
 if __name__ == "__main__":
     data_folder = '2023_05_17_17'
-    model_folder = '24_05_23-10'
+    model_folder = '08_06_23-13'
     
     model_name = os.path.join(data_folder,model_folder)
     args = pickle.load(open(os.path.join('../../Model',model_name,'args.pkl'),'rb'))

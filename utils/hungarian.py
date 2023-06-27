@@ -72,15 +72,24 @@ def softIoU(target, out, e=1e-6):
     Returns:
         loss: Sum of losses with applied sample weight
     """
-
-
-    out = torch.sigmoid(out)
+    weights = [1,8,8,4,8]
+    iou_all = 0
     
-    num = (out*target).sum(1,True)
-    den = (out+target-out*target).sum(1,True) + e
-    iou = num / den
-
-    cost = (1 - iou)
+    for n in range(0,np.shape(target)[1]):
+        out_l = torch.sigmoid(out[:,n,:,:]).flatten()
+        target_l = target[:,n,:,:].flatten()
+        num = (out_l*target_l).sum(0,True)
+        den = (out_l+target_l-out_l*target_l).sum(0,True) + e
+        iou = weights[n]* num / den
+        iou_all += iou
+        
+    cost = (sum(weights) - iou_all)
+        
+    # out = torch.sigmoid(out)
+    # num = (out*target).sum(1,True)
+    # den = (out+target-out*target).sum(1,True) + e
+    # iou = num / den
+    # cost = (1 - iou)
 
     return cost.squeeze()
 

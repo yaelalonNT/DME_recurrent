@@ -1,23 +1,24 @@
-import matplotlib
-matplotlib.use('Agg')
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-import matplotlib.pyplot as plt
-from args import get_parser
-from modules.model import RSISMask, FeatureExtractor
-from utils.utils import get_optimizer, batch_to_var, make_dir, check_parallel
-from utils.utils import save_checkpoint_prev_mask, load_checkpoint, get_base_params,get_skip_params
-from dataloader.dataset_Hoct import HoctDataset
-import torch
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jun 27 11:20:15 2023
+
+@author: yael
+"""
+
 import torch.nn as nn
 import numpy as np
 import torch.utils.data as data
 from utils.objectives import softIoULoss
 import time
 import pickle
-import random
-import datetime
+from modules.model import RSISMask, FeatureExtractor
+from utils.utils import get_optimizer, batch_to_var, make_dir, check_parallel
+from utils.utils import save_checkpoint_prev_mask, load_checkpoint, get_base_params,get_skip_params
+from dataloader.dataset_Hoct import HoctDataset
+import matplotlib.pyplot as plt
 from datetime import timedelta
+import os
+import torch
 
 def save_loss_plot(save_path, train_loss, dev_loss):
   plt.figure(figsize = (14,6))
@@ -99,7 +100,7 @@ def runIter(args, encoder, decoder, x, y_mask,
         out_masks = out_masks.contiguous()
     
     #loss is masked with sw_mask
-    loss_mask_iou = mask_siou(y_mask.view(-1,y_mask.size()[-1]),out_masks.view(-1,out_masks.size()[-1]))
+    loss_mask_iou = mask_siou(y_mask,out_masks)
     loss_mask_iou = torch.mean(loss_mask_iou)
 
     if loss is None:
@@ -282,34 +283,3 @@ def trainIters(args):
         # early stopping after N epochs without improvement
         if acc_patience > args.patience_stop:
             break
-
-
-if __name__ == "__main__":    
-    parser = get_parser()
-    args = parser.parse_args()
-    args.use_gpu = 0
-    args.log_term = False
-    args.hoct_dir = r'\\nv-nas01\Data\DME_recurrent\Model\2023_05_17_15'
-    args.dataset = 'Hoct'
-    #args.dataset = 'davis2017'
-    args.num_workers = 0
-    args.max_epoch = 20
-    args.length_clip = 5
-    args.batch_size = 4
-    args.print_every = 1
-    args.maxseqlen = 5 # As the number of labels 
-    
-    args.models_path = args.hoct_dir
-    if not os.path.isdir(args.models_path):
-        os.mkdir(args.models_path)
-    now = datetime.datetime.now()
-    current_time = now.strftime("%d_%m_%y-%H")
-    args.model_name = current_time  
-    torch.manual_seed(args.seed)
-    random.seed(args.seed)
-    gpu_id = args.gpu_id
-    if args.use_gpu:
-        torch.cuda.set_device(device=gpu_id)
-        torch.cuda.manual_seed(args.seed)
-        
-    trainIters(args)
