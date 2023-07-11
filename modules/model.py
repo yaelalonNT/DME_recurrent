@@ -177,6 +177,7 @@ class RSISMask(nn.Module):
         super(RSISMask,self).__init__()
         self.hidden_size = args.hidden_size
         self.kernel_size = args.kernel_size
+        self.num_labels = args.maxseqlen
         padding = 0 if self.kernel_size == 1 else 1
 
         self.dropout = args.dropout
@@ -201,7 +202,7 @@ class RSISMask(nn.Module):
             self.clstm_list.append(clstm_i)
             del clstm_i
 
-        self.conv_out = nn.Conv2d(skip_dims_out[-1], 1,self.kernel_size, padding = padding)
+        self.conv_out = nn.Conv2d(skip_dims_out[-1],self.num_labels ,self.kernel_size, padding = padding)
 
         # calculate the dimensionality of classification vector
         # side class activations are taken from the output of the convlstm

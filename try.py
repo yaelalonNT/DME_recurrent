@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Thu Jul  6 09:46:43 2023
+
+@author: Neuron
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Mon May 15 13:17:04 2023
 
 @author: yael
@@ -10,6 +17,13 @@ import numpy as np
 import imutils
 import random
 from scipy.ndimage import rotate
+import torch.utils.data as data
+from args import get_parser
+import torch
+import random
+import datetime
+from utils.train_utils import trainIters
+from torch.autograd import Variable
 
 class HoctDataset():
     def __init__(self,args,split):
@@ -139,3 +153,61 @@ class HoctDataset():
            imgs, targets = self.augment(imgs, targets) 
         
         return imgs, targets, seq_name, starting_frame
+
+def init_dataloaders(args):
+    loaders = {}
+
+    # Load train and dev data loaders
+    for split in ['train', 'val']:
+        batch_size = args.batch_size
+        dataset = HoctDataset(args,split)
+        loaders[split] = data.DataLoader(dataset, batch_size=batch_size,
+                                         shuffle=True,
+                                         num_workers=args.num_workers,
+                                         drop_last=True)
+    return loaders
+
+
+
+
+parser = get_parser()
+args = parser.parse_args()
+args.use_gpu = torch.cuda.is_available()
+args.log_term = False
+args.hoct_dir = r'\\nv-nas01\Data\DME_recurrent\Model\2023_05_17_17'
+args.dataset = 'Hoct'
+args.num_workers = 0
+args.max_epoch = 20
+args.length_clip = 5
+args.batch_size = 2
+args.print_every = 100
+args.maxseqlen = 5 # As the number of labels 
+
+args.models_path = args.hoct_dir
+if not os.path.isdir(args.models_path):
+    os.mkdir(args.models_path)
+now = datetime.datetime.now()
+current_time = now.strftime("%d_%m_%y-%H")
+args.model_name = current_time  
+
+
+loaders = init_dataloaders(args)
+for split in ['train', 'val']:
+    Batches = len(loaders[split])  
+    print('2022')                  
+    for batch_idx, (inputs, targets, seq_name,starting_frame) in enumerate(loaders[split]): 
+        #print(inputs)
+        x = Variable(inputs[1],requires_grad=False)
+        #a = inputs.copy()
+        #print(type(inputs))
+        #inputs[1]
+        print('2023')
+
+
+# a = imgs[0].transpose(1, 2, 0)
+# a[a<0] = 0
+# a[a>1] = 1
+# plt.figure()
+# plt.imshow(a)
+# plt.show()
+# plt.savefig('a.png') 

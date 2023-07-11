@@ -27,22 +27,30 @@ def connect_to_DB(DB_ip):
     return conn
     
 def query():
+    
+    study_string = "('C2022.001','C2021.003','RGX-314-5101','GR43828','C2022.001','C2021.001','C2020.004','ElmanAMD pilot','AK')"
+
     query = """
     select distinct _patient.StudySubjectID as Patient,Scan.Eye,
-    Scan.UniqueIdentifier as Scan from Scan
+    REPLACE(Scan.UniqueIdentifier,' ','') as Scan from Scan
     join Session on scan.SessionID = session.SessionID
     join _patient on session.PatientID = _Patient.PatientID
     join _PatientEyeStudy on _PatientEyeStudy.PatientID = _Patient.PatientID
     join _Study on _PatientEyeStudy.StudyID = _Study.StudyID
-    where _Study.Name in ('C2022.001','C2021.003','RGX-314-5101','GR43828','C2022.001')
+    where _Study.Name in %s
     order by _patient.studysubjectid, scan.eye
-    """
+    """%(study_string)
     return query
 
-def query_class_type():
+def query_class_type(scans):
+    scans_list = scans.values.tolist()
+    scans_list = [scan.replace(' ','') for scan in scans_list]
+    scans_string = "','".join(scans_list)
+    scans_string = "('" + scans_string + "')"
+        
     query = """
-    select distinct VG_aup.ID,_patient.studysubjectid, scan.eye,Scan.UniqueIdentifier,VG_BScanVSROutput.VisFrameID,
-    VG_BScanOutput.ClassTypeReg from scan
+    select distinct VG_aup.ID,_patient.studysubjectid, scan.eye,REPLACE(Scan.UniqueIdentifier,' ','') as Scan,VG_BScanVSROutput.VisFrameID,
+    VG_BScanOutput.ClassTypeReg,VG_aup.CfgID,Scan.starttime from scan
     join analysisunitprocess as DN_aup on scan.ScanID = DN_aup.ScanID
     join analysisunitprocess as VG_aup ON VG_aup.ScanID = scan.ScanID
     join DN_ScanOutput on DN_ScanOutput.analysisunitprocessid = DN_aup.id
@@ -52,11 +60,10 @@ def query_class_type():
     join _patient on session.PatientID = _Patient.PatientID
     join _PatientEyeStudy on _PatientEyeStudy.PatientID = _Patient.PatientID
     join _Study on _PatientEyeStudy.StudyID = _Study.StudyID
-    where _Study.Name in ('C2021.003','RGX-314-5101','GR43828','C2022.001')
+    where REPLACE(Scan.UniqueIdentifier,' ','') in %s
     and VG_aup.RunModeTypeID = DN_aup.RunModeTypeID AND VG_aup.RunModeTypeID !=0 
-    order by _patient.studysubjectid, scan.eye,Scan.UniqueIdentifier,VG_BScanVSROutput.VisFrameID
-
-    """ 
+    order by _patient.studysubjectid, scan.eye,Scan.starttime,VG_BScanVSROutput.VisFrameID
+    """ %(scans_string)
     return query
     
 def save_data_summary(scans_path,save_path,save_name):
@@ -66,10 +73,10 @@ def save_data_summary(scans_path,save_path,save_name):
     """
     mat_files = os.listdir(scans_path)
     scans = [mat_file.split('.mat')[0] for mat_file in mat_files]
-    scans = [scan + '                ' for scan in scans]
     my_query = query()
     df = pd.io.sql.read_sql(my_query, conn)
     df = df[df.Scan.isin(scans)].reset_index(drop=True)
+    #missing_scans = [scan for scan in scans if scan not in df.Scan.values.tolist()]
     df['Patient_Eye'] = df.Patient + df.Eye
     pt_eye_unique = df['Patient_Eye'].unique()
     train, validation = train_test_split(pt_eye_unique, test_size=0.2,random_state=100)
@@ -84,7 +91,7 @@ def mkdir(path):
         os.mkdir(path)
     return
 
-def save_numpy_files(df,mat_file_path,save_numpy_path):
+def save_numpy_files(df,mat_file_path,save_numpy_path,is_dme):
     """
     The function saves the data of the images in a seperate np file for raw B-scan
     and corresponding segmentaion GS, after filtering out B-scans that we didn't
@@ -102,12 +109,16 @@ def save_numpy_files(df,mat_file_path,save_numpy_path):
     seg_save_path = os.path.join(save_numpy_path,Seg_folder) 
     mkdir(seg_save_path)
     scans = df.Scan
-    my_query_class = query_class_type()
+    my_query_class = query_class_type(scans)
     df_classes = pd.io.sql.read_sql(my_query_class, conn)
-    
+    #df_classes = df_classes.loc[df_classes.groupby(['studysubjectid','eye','UniqueIdentifier','VisFrameID'])['CfgID'].idxmax()].reset_index(level=0)
+
     print('Starting to save numpy files')
     for n,scan in enumerate(tqdm(scans)):
-        df_classes_scan = df_classes[df_classes.UniqueIdentifier == scan].reset_index()
+        df_classes_scan = df_classes[df_classes.Scan == scan].reset_index()
+        max_cfg = df_classes_scan['CfgID'].max()
+        df_classes_scan = df_classes_scan[df_classes_scan['CfgID']==max_cfg].reset_index()
+        
         df.loc[n,'Number lines'] = len(df_classes_scan)
         scan = scan.replace(' ','')
         scan_I_save_path = os.path.join(I_save_path,scan)
@@ -132,11 +143,20 @@ def save_numpy_files(df,mat_file_path,save_numpy_path):
     df.to_csv(os.path.join(save_csv_path,save_name))
     return df   
 
-if __name__ =="__main__":     
-    scans_path = r'\\172.17.102.175\Data\DME_recurrent\Data\matfile\I_VS'
-    mat_file_path = r'\\172.17.102.175\Data\DME_recurrent\Data\matfile'
-    save_path_main = r'\\nv-nas01\Data\DME_recurrent\Model'
+if __name__ =="__main__":   
     
+    is_dme = 0 # 0-and, 1- dme
+    
+    if is_dme ==1:
+        scans_path = r'\\172.17.102.175\Data\DME_recurrent\Data\matfile\I_VS'
+        mat_file_path = r'\\172.17.102.175\Data\DME_recurrent\Data\matfile'
+        save_path_main = r'\\nv-nas01\Data\DME_recurrent\Model'
+    else:
+        scans_path = r'\\nv-nas01\Data\NV-AMD\NOA_V2_2\NV-AMD_recurrent\Ready_For_Network\I_VS'
+        mat_file_path = r'\\nv-nas01\Data\NV-AMD\NOA_V2_2\NV-AMD_recurrent\Ready_For_Network'
+        save_path_main = r'\\nv-nas01\Data\NV-AMD\NOA_V2_2\NV-AMD_recurrent\Model'
+    
+    mkdir(save_path_main)
     now = datetime.now()
     date_str = now.strftime("%Y_%m_%d_%H")
     save_csv_path =  os.path.join(save_path_main,date_str)
@@ -145,8 +165,8 @@ if __name__ =="__main__":
     save_name = 'data_summary.csv'
     conn = connect_to_DB(DB_ip = '172.30.2.246')
 
-    df = save_data_summary(scans_path,save_csv_path,save_name)
-    save_numpy_files(df,mat_file_path,save_numpy_path)    
+    df = save_data_summary(scans_path,save_csv_path,save_name,is_dme)
+    save_numpy_files(df,mat_file_path,save_numpy_path,is_dme)    
     
 
     

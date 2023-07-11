@@ -19,7 +19,7 @@ if __name__ == "__main__":
     args.num_workers = 0
     args.max_epoch = 20
     args.length_clip = 5
-    args.batch_size = 4
+    args.batch_size = 2
     args.print_every = 100
     args.maxseqlen = 5 # As the number of labels 
     

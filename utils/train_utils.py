@@ -57,7 +57,6 @@ def runIter(args, encoder, decoder, x, y_mask,
     """
     mask_siou = crits
     enc_opt, dec_opt = optims
-    T = args.maxseqlen
     hidden_spatial = None
     out_masks = []
     if mode == 'train':
@@ -71,31 +70,25 @@ def runIter(args, encoder, decoder, x, y_mask,
     hidden_temporal_list = []
 
     # loop over number of labels and get predictions
-    for t in range(0, T):
-        if prev_hidden_temporal_list is not None:
-            hidden_temporal = prev_hidden_temporal_list[t]
-        else:
-            hidden_temporal = None
-            
-        out_mask, hidden = decoder(feats, hidden_spatial, hidden_temporal)
-            
-        hidden_tmp = []
-        for ss in range(len(hidden)):
-            hidden_tmp.append(hidden[ss][0])
-        hidden_spatial = hidden
-        hidden_temporal_list.append(hidden_tmp)
+    if prev_hidden_temporal_list is not None:
+        hidden_temporal = prev_hidden_temporal_list[0]
+    else:
+        hidden_temporal = None
+        
+    out_masks, hidden = decoder(feats, hidden_spatial, hidden_temporal)
+    
+    upsample_match = nn.UpsamplingBilinear2d(size=(x.size()[-2], x.size()[-1]))
+    out_masks = upsample_match(out_masks)
+        
+    hidden_tmp = []
+    for ss in range(len(hidden)):
+        hidden_tmp.append(hidden[ss][0])
+        
+    hidden_temporal_list.append(hidden_tmp)
 
-        upsample_match = nn.UpsamplingBilinear2d(size=(x.size()[-2], x.size()[-1]))
-        out_mask = upsample_match(out_mask)
-        out_mask = out_mask.view(out_mask.size(0), -1)
 
-        # get predictions in list to concat later
-        out_masks.append(out_mask)
+    #out_mask = out_mask.view(out_mask.size(0), -1)
 
-    # concat all outputs into single tensor to compute the loss
-    t = len(out_masks)
-    out_masks = torch.cat(out_masks,1).view(out_mask.size(0),len(out_masks), -1)
-    out_masks = out_masks.reshape(np.shape(y_mask))
     if not args.use_gpu:
         out_masks = out_masks.contiguous()
     

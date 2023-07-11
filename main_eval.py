@@ -5,8 +5,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from utils.utils import batch_to_var, make_dir, load_checkpoint, check_parallel, test_prev_mask
 from modules.model import RSISMask, FeatureExtractor
-from dataloader.dataset_utils import sequence_palette
-from PIL import Image
+#from dataloader.dataset_utils import sequence_palette
+#from PIL import Image
 from dataloader.dataset_Hoct import HoctDataset
 import torch
 import numpy as np
@@ -168,7 +168,7 @@ class Evaluate():
 
 if __name__ == "__main__":
     data_folder = '2023_05_17_17'
-    model_folder = '08_06_23-13'
+    model_folder = '06_07_23-07'
     
     model_name = os.path.join(data_folder,model_folder)
     args = pickle.load(open(os.path.join('../../Model',model_name,'args.pkl'),'rb'))
