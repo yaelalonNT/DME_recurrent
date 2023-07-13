@@ -326,7 +326,6 @@ def test_prev_mask(args, encoder, decoder, x, prev_hidden_temporal_list):
     for the provided batch of inputs and targets
     """
 
-    T = args.maxseqlen
     hidden_spatial = None
     hidden_temporal_list = []
 
@@ -339,39 +338,26 @@ def test_prev_mask(args, encoder, decoder, x, prev_hidden_temporal_list):
 
     feats = encoder(x)
     
-    # loop over sequence length and get predictions
-    for t in range(0, T):
-        #prev_hidden_temporal_list is a list with the hidden state for all instances from previous time instant
-        #If this is the first frame of the sequence, hidden_temporal is initialized to None. Otherwise, it is set with the value from previous time instant.
-        if prev_hidden_temporal_list is not None:
-            hidden_temporal = prev_hidden_temporal_list[t]
-        else:
-            hidden_temporal = None
+    if prev_hidden_temporal_list is not None:
+        hidden_temporal = prev_hidden_temporal_list[0]
+    else:
+        hidden_temporal = None
 
-        
-        #The decoder receives two hidden state variables: hidden_spatial (a tuple, with hidden_state and cell_state) which refers to the
-        #hidden state from the previous object instance from the same time instant, and hidden_temporal which refers to the hidden state from the same
-        #object instance from the previous time instant.
-        out_mask, hidden = decoder(feats, hidden_spatial, hidden_temporal)
+    out_masks, hidden = decoder(feats, hidden_spatial, hidden_temporal)
 
 
-        hidden_tmp = []
-        for ss in range(len(hidden)):
-            hidden_tmp.append(hidden[ss][0].data)
-        hidden_spatial = hidden
-        hidden_temporal_list.append(hidden_tmp)
+    hidden_tmp = []
+    for ss in range(len(hidden)):
+        hidden_tmp.append(hidden[ss][0].data)
 
-        upsample_match = nn.UpsamplingBilinear2d(size=(x.size()[-2], x.size()[-1]))
-        out_mask = upsample_match(out_mask)
-        out_mask = out_mask.view(out_mask.size(0), -1)
+    hidden_temporal_list.append(hidden_tmp)
 
-        # get predictions in list to concat later
-        out_masks.append(out_mask)
-        
-        del hidden_temporal, hidden_tmp, out_mask
+    upsample_match = nn.UpsamplingBilinear2d(size=(x.size()[-2], x.size()[-1]))
+    out_masks = upsample_match(out_masks)
 
+    del hidden_temporal, hidden_tmp
+    
     # concat all outputs into single tensor to compute the loss
-    t = len(out_masks)
     out_masks = torch.cat(out_masks,1).view(out_masks[0].size(0),len(out_masks), -1)
 
     out_masks = torch.sigmoid(out_masks)
